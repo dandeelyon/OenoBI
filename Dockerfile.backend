@@ -1,0 +1,14 @@
+# Use the Deno official image
+FROM denoland/deno:2.6.8
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the backend files
+COPY src/backend /app/src/backend
+
+# Expose the port the Hono app listens on
+EXPOSE 8000
+
+# Command to run the Deno application
+CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read", "src/backend/index.tsx"]

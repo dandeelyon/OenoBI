@@ -1,0 +1,41 @@
+services:
+  db:
+    extends:
+      file: ./pgdb/compose.yml
+      service: db
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PG_HOST=db
+      - PG_PORT=5432
+      - PG_USER=user
+      - PG_PASSWORD=password
+      - PG_DATABASE=oenobi
+      - COMMERCE7_API_KEY=${COMMERCE7_API_KEY}
+      - COMMERCE7_TENANT_ID=${COMMERCE7_TENANT_ID}
+      - VINTRACE_API_KEY=${VINTRACE_API_KEY}
+      - VINTRACE_BASE_URL=${VINTRACE_BASE_URL}
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - PG_HOST=db
+      - PG_PORT=5432
+      - PG_USER=user
+      - PG_PASSWORD=password
+      - PG_DATABASE=oenobi
+      - COMMERCE7_API_KEY
+      - VINTRACE_API_KEY
+      - VITE_BACKEND_URL=http://backend:8000
+    volumes:
+      - .:/app
+      - /app/node_modules

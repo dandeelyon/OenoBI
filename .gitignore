@@ -1,0 +1,56 @@
+# =========================
+# General
+# =========================
+.DS_Store
+.env
+*.log
+
+# =========================
+# Node / React
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# React build output
+build/
+dist/
+out/
+
+# Vite
+.vite/
+
+# Next.js (if applicable)
+.next/
+.vercel/
+
+# =========================
+# Deno
+# =========================
+# Deno cache & state
+.deno/
+deno.lock
+
+# Deno coverage & test artifacts
+coverage/
+lcov.info
+
+# =========================
+# TypeScript
+# =========================
+*.tsbuildinfo
+
+# =========================
+# Editors & IDEs
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# OS-specific
+# =========================
+Thumbs.db
