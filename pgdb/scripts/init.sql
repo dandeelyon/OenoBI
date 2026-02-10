@@ -1,23 +1,3 @@
--- Create advisory lock functions with proper permissions
-create or replace function public.pg_try_advisory_lock(lock_id bigint)
-returns boolean
-language sql
-security definer
-as $$
-  select pg_try_advisory_lock(lock_id);
-$$;
-
-create or replace function public.pg_advisory_unlock(lock_id bigint)
-returns boolean
-language sql
-security definer
-as $$
-  select pg_advisory_unlock(lock_id);
-$$;
-
--- Grant permissions to all roles
-grant execute on function public.pg_try_advisory_lock(bigint) to public;
-grant execute on function public.pg_advisory_unlock(bigint) to public;
 
 -- Create kv table if it doesn't exist
 CREATE TABLE IF NOT EXISTS kv (

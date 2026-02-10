@@ -6,20 +6,27 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile.backend
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
-      - PG_HOST=db
-      - PG_PORT=5432
-      - PG_USER=user
-      - PG_PASSWORD=password
-      - PG_DATABASE=oenobi
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=oenobi
       - COMMERCE7_API_KEY=${COMMERCE7_API_KEY}
       - COMMERCE7_TENANT_ID=${COMMERCE7_TENANT_ID}
       - VINTRACE_API_KEY=${VINTRACE_API_KEY}
       - VINTRACE_BASE_URL=${VINTRACE_BASE_URL}
+      - DASH_CACHE_KEY=${DASH_CACHE_KEY}
+      - PYTHONDONTWRITEBYTECODE=1 # Optional: keeps your local folder clean of __pycache__
+      - PYTHONUNBUFFERED=1 
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
 
   frontend:
     build:
@@ -33,9 +40,7 @@ services:
       - PG_USER=user
       - PG_PASSWORD=password
       - PG_DATABASE=oenobi
-      - COMMERCE7_API_KEY
-      - VINTRACE_API_KEY
-      - VITE_BACKEND_URL=http://backend:8000
+      - VITE_BACKEND_URL=http://localhost:8000
     volumes:
       - .:/app
       - /app/node_modules

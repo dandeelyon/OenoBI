@@ -141,7 +141,7 @@ export function useDashExec() {
     
     // Force server refresh using ?refresh=1 parameter
     try {
-      const refreshUrl = `${import.meta.env.VITE_BACKEND_URL}/make-server-920a8867/dash/exec?refresh=1`;
+      const refreshUrl = `${import.meta.env.VITE_BACKEND_URL}/backend-api/dash/exec?refresh=1`;
       console.log('🔄 [DashExec] Fetching with refresh flag:', refreshUrl);
       
       const resp = await fetch(refreshUrl, {
@@ -214,7 +214,7 @@ export function useDashExec() {
       CACHE.error = undefined;
       CACHE.data = undefined;
 
-      const url = `${import.meta.env.VITE_BACKEND_URL}/make-server-920a8867/dash/exec`;
+      const url = `${import.meta.env.VITE_BACKEND_URL}/backend-api/dash/exec`;
 
       CACHE.promise = (async () => {
         console.log('[DashExec] Fetching dashboard data...');
@@ -268,17 +268,17 @@ export function useDashExec() {
             const json = await resp.json();
             
             // CRITICAL: Validate payload shape before setting state
-            if (!isValidDashExecPayload(json)) {
-              console.error('[DashExec] Invalid payload shape received:', json);
+            if (!isValidDashExecPayload(json.payload)) {
+              console.error('[DashExec] Invalid payload shape received:', json.payload);
               throw new Error('Invalid dashboard payload - missing required fields');
             }
             
             console.log('[DashExec] Dashboard data received:', {
-              cacheStatus: json.meta?.cacheStatus,
-              cacheAge: json.meta?.cacheAge,
-              ordersCount: json.meta?.ordersCount
+              cacheStatus: json.payload.meta?.cacheStatus,
+              cacheAge: json.payload.meta?.cacheAge,
+              ordersCount: json.payload.meta?.ordersCount
             });
-            return json;
+            return json.payload;
           }
 
           // Other errors
