@@ -1138,6 +1138,10 @@
     background-color: var(--color-blue-100);
   }
 
+  .bg-blue-200 {
+    background-color: var(--color-blue-200);
+  }
+
   .bg-blue-500\/10 {
     background-color: color-mix(in srgb, oklch(.623 .214 259.815) 10%, transparent);
   }

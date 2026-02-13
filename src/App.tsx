@@ -6,11 +6,30 @@ import { AISuggestions } from "./components/AISuggestions";
 import { QuickActions } from "./components/QuickActions";
 import { InventoryMetrics } from "./components/InventoryMetrics";
 import { DashExecProvider } from "./context/DashExecProvider";
+import { useAuth } from "./context/AuthContext"; // Import useAuth
+import { AuthPage } from "./components/AuthPage"; // Import AuthPage
 
 
 export type UserRole = 'accounting' | 'enterprise' | 'sales';
 
 export default function App() {
+  const { isAuthenticated, loading } = useAuth(); // Use the auth context
+
+  // If still loading auth state, show a loading indicator or null
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-2xl text-foreground">Loading authentication...</p>
+      </div>
+    );
+  }
+
+  // If not authenticated, show the AuthPage
+  if (!isAuthenticated) {
+    return <AuthPage />;
+  }
+
+  // If authenticated, show the main application content
   const [timePeriod, setTimePeriod] = useState("month");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentRole, setCurrentRole] = useState<UserRole>("sales");
@@ -35,7 +54,7 @@ export default function App() {
       case 'enterprise':
         return 'Enterprise Overview';
       case 'sales':
-        return 'Sales Overview';
+      return 'Sales Overview';
       default:
         return 'Business Overview';
     }
@@ -44,14 +63,14 @@ export default function App() {
   return (
     <DashExecProvider>
       <div className="min-h-screen bg-background">
-        <DashboardHeader 
+        <DashboardHeader
           onTimePeriodChange={handleTimePeriodChange}
           onSearchQuery={handleSearchQuery}
           onRoleChange={handleRoleChange}
           timePeriod={timePeriod}
           currentRole={currentRole}
         />
-        
+
         <div className="p-6 space-y-6">
           {/* Key Metrics Section */}
           <section>
@@ -69,10 +88,10 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <section>
               <h2 className="mb-4">AI Insights</h2>
-              <AISuggestions 
-                searchQuery={searchQuery} 
-                timePeriod={timePeriod} 
-                currentRole={currentRole} 
+              <AISuggestions
+                searchQuery={searchQuery}
+                timePeriod={timePeriod}
+                currentRole={currentRole}
               />
             </section>
 

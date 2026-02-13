@@ -3,3 +3,9 @@ uvicorn[standard]
 asyncpg
 pydantic-settings
 python-dotenv
+sqlalchemy[asyncio]
+passlib
+python-jose[cryptography]
+pydantic[email]
+python-multipart
+bcrypt==4.3.0
