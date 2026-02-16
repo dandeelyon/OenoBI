@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../context/AuthContext"; // Import useAuth
 
 export interface DashExecPayload {
   overview: {
@@ -124,6 +125,10 @@ export function useDashExec() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // We no longer need `isAuthenticated` directly here for token retrieval
+  // but it's fine to keep if used elsewhere for UI logic.
+  const { isAuthenticated } = useAuth(); // Keeping this for potential future use or debugging if needed
+
   const cacheKey = useMemo(() => makeKey(), []);
 
   const refresh = async () => {
@@ -139,15 +144,22 @@ export function useDashExec() {
     
     console.log('🔄 [DashExec] Client cache cleared');
     
-    // Force server refresh using ?refresh=1 parameter
+    // Force server refresh using POST to the correct endpoint
     try {
-      const refreshUrl = `${import.meta.env.VITE_BACKEND_URL}/backend-api/dash/exec?refresh=1`;
-      console.log('🔄 [DashExec] Fetching with refresh flag:', refreshUrl);
+      const refreshUrl = `${import.meta.env.VITE_BACKEND_URL}/backend-api/dash/exec/refresh`;
+      console.log('🔄 [DashExec] Fetching with refresh flag (POST):', refreshUrl);
       
+      const authToken = localStorage.getItem('authToken'); // Get fresh token here
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
       const resp = await fetch(refreshUrl, {
-        headers: {
-          "Content-Type": "application/json",
-        },
+        method: "POST",
+        headers: headers,
       });
       
       console.log('🔄 [DashExec] Response status:', resp.status);
@@ -226,10 +238,16 @@ export function useDashExec() {
         while (attempt < maxAttempts) {
           attempt++;
           
+          const authToken = localStorage.getItem('authToken'); // Get fresh token here
+          const headers: HeadersInit = {
+            "Content-Type": "application/json",
+          };
+          if (authToken) {
+            headers['Authorization'] = `Bearer ${authToken}`;
+          }
+
           const resp = await fetch(url, {
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: headers,
           });
 
           // CRITICAL: Check for 202/503 BEFORE resp.ok (202 is technically "ok" but not valid payload)

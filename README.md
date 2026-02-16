@@ -81,8 +81,10 @@ VINTRACE_API_KEY=your_vintrace_api_key
 VINTRACE_BASE_URL=https://us30.vintrace.net/bla
 ```
 
+Inside the backend folder:
+- Add allowlist.txt file that allows only specific users to login.
 
 ### TODO
-1. Change the backend to be in Python so that the ETL pipeline is hosted through Python rather than deno.
-2. Add Authentication according to the priority. 
-3. Add insights generator using LLM
+1. Change the backend to be in Python so that the ETL pipeline is hosted through Python rather than deno. (50%)
+2. Add Authentication according to the priority. (done)
+3. Add insights generator using LLM (toodo)
