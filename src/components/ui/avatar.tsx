@@ -5,12 +5,13 @@ import * as AvatarPrimitive from "@radix-ui/react-avatar@1.1.3";
 
 import { cn } from "./utils";
 
-function Avatar({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Root>) {
+const Avatar = React.forwardRef<
+  React.ElementRef<typeof AvatarPrimitive.Root>,
+  React.ComponentProps<typeof AvatarPrimitive.Root>
+>(({ className, ...props }, ref) => {
   return (
     <AvatarPrimitive.Root
+      ref={ref}
       data-slot="avatar"
       className={cn(
         "relative flex size-10 shrink-0 overflow-hidden rounded-full",
@@ -19,7 +20,8 @@ function Avatar({
       {...props}
     />
   );
-}
+});
+Avatar.displayName = "Avatar";
 
 function AvatarImage({
   className,

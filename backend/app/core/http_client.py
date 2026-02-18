@@ -1,10 +1,13 @@
 import json
+import logging
+import time
 from typing import Any, Dict, Optional
 
 import httpx
 
 from app.config import settings
 
+logger = logging.getLogger(__name__)
 
 class HttpClientError(Exception):
     """Domain-specific HTTP error with safe, non-secret details."""
@@ -72,11 +75,22 @@ def create_commerce7_client() -> httpx.AsyncClient:
     )
 
 
+def _normalize_vintrace_base(base_url: Optional[str]) -> Optional[str]:
+    if not base_url:
+        return base_url
+    normalized = base_url.rstrip("/")
+    for marker in ("/api/v6", "/api/v7"):
+        if marker in normalized:
+            normalized = normalized.split(marker, 1)[0]
+            break
+    return normalized or base_url
+
+
 def create_vintrace_client(base_url: Optional[str] = None) -> httpx.AsyncClient:
     """
     Factory for a hardened AsyncClient configured for Vintrace.
     """
-    final_base = base_url or settings.VINTRACE_BASE_URL
+    final_base = _normalize_vintrace_base(base_url or settings.VINTRACE_BASE_URL)
     return httpx.AsyncClient(
         base_url=final_base or "",
         timeout=httpx.Timeout(30.0, connect=5.0),
@@ -194,20 +208,34 @@ async def vintrace_request(
         "Accept": "application/json",
         "correlation-id": "",
     }
-    print(f"vinhead: {headers}")
-    print(f"vintracebaseurl: {settings.VINTRACE_BASE_URL}")
-    print(f"vintrace: {path}")
-    print(f"vintrace: {method}")
-    print(f"vintrace: {params}")
 
+    start = time.monotonic()
     try:
         response = await client.request(method, path, headers=headers, params=params)
     except httpx.RequestError as exc:
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        logger.warning(
+            "vintrace request failed method=%s path=%s params=%s elapsed_ms=%s err=%s",
+            method,
+            path,
+            params,
+            elapsed_ms,
+            str(exc),
+        )
         raise HttpClientError(
             service="vintrace",
             status_code=0,
             message=str(exc),
         ) from exc
 
+    elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+    logger.info(
+        "vintrace response status=%s method=%s path=%s params=%s elapsed_ms=%s base=%s",
+        response.status_code,
+        method,
+        path,
+        params,
+        elapsed_ms,
+        _normalize_vintrace_base(settings.VINTRACE_BASE_URL),
+    )
     return await _read_json_safely(response, service="vintrace")
-

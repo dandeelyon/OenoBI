@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 interface WineBatch {
   id: number;
@@ -69,17 +70,15 @@ export function VintraceBatchProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/backend-api/vintrace/wine-batches`;
+      const url = `https://${projectId}.supabase.co/functions/v1/make-server-920a8867/vintrace/wine-batches?bbvOnly=true`;
       
       console.log('[Vintrace Batch Provider] Fetching wine batches...');
 
-      const authToken = localStorage.getItem('authToken');
-      const headers: HeadersInit = {};
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-
-      const response = await fetch(url, { headers });
+      const response = await fetch(url, {
+        headers: {
+          "Authorization": `Bearer ${publicAnonKey}`,
+        },
+      });
 
       const data = await response.json();
 

@@ -4,12 +4,22 @@ import { useAuth } from "../context/AuthContext"; // Import useAuth
 export interface DashExecPayload {
   overview: {
     revenue: {
+      today?: number;
+      week?: number;
+      month?: number;
+      quarter?: number;
+      year?: number;
       last30Days: number;
       last90Days: number;
       dailyAvg30d: number;
       dailyAvg90d: number;
     };
     orders: {
+      today?: number;
+      week?: number;
+      month?: number;
+      quarter?: number;
+      year?: number;
       last30Days: number;
       last90Days: number;
     };
@@ -27,7 +37,7 @@ export interface DashExecPayload {
     month: string;
     revenue: number;
     orders: number;
-    customers: number;
+    bottles?: number;
   }>;
   customerAnalytics?: {
     topCustomers90d: Array<{
@@ -90,6 +100,16 @@ function isValidDashExecPayload(x: any): x is DashExecPayload {
   );
 }
 
+function normalizeDashExecResponse(json: any): DashExecPayload | null {
+  if (json && typeof json === "object" && isValidDashExecPayload(json)) {
+    return json;
+  }
+  if (json && typeof json === "object" && isValidDashExecPayload(json.payload)) {
+    return json.payload;
+  }
+  return null;
+}
+
 // Safe fallback payload (never let {} into state)
 function makeEmptyDashExecPayload(): DashExecPayload {
   return {
@@ -147,6 +167,7 @@ export function useDashExec() {
     // Force server refresh using POST to the correct endpoint
     try {
       const refreshUrl = `${import.meta.env.VITE_BACKEND_URL}/backend-api/dash/exec/refresh`;
+      const vintraceSyncUrl = `${import.meta.env.VITE_BACKEND_URL}/backend-api/vintrace/sync-batches`;
       console.log('🔄 [DashExec] Fetching with refresh flag (POST):', refreshUrl);
       
       const authToken = localStorage.getItem('authToken'); // Get fresh token here
@@ -156,6 +177,22 @@ export function useDashExec() {
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
+
+      // Fire Vintrace sync in parallel with dashboard refresh.
+      fetch(vintraceSyncUrl, {
+        method: "POST",
+        headers: headers,
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body?.detail || body?.error || `HTTP ${res.status}`);
+          }
+          console.log('🔄 [DashExec] Vintrace sync triggered');
+        })
+        .catch((err) => {
+          console.error('🔄 [DashExec] Vintrace sync failed:', err);
+        });
 
       const resp = await fetch(refreshUrl, {
         method: "POST",
@@ -167,8 +204,9 @@ export function useDashExec() {
       if (resp.ok) {
         const payload = await resp.json();
         console.log('🔄 [DashExec] Server cache refreshed, received new data');
-        if (isValidDashExecPayload(payload)) {
-          setData(payload);
+        const normalized = normalizeDashExecResponse(payload);
+        if (normalized) {
+          setData(normalized);
           setLoading(false);
           return;
         }
@@ -284,19 +322,19 @@ export function useDashExec() {
           // Success case - validate payload
           if (resp.ok) {
             const json = await resp.json();
-            
+            const normalized = normalizeDashExecResponse(json);
             // CRITICAL: Validate payload shape before setting state
-            if (!isValidDashExecPayload(json.payload)) {
-              console.error('[DashExec] Invalid payload shape received:', json.payload);
+            if (!normalized) {
+              console.error('[DashExec] Invalid payload shape received:', json);
               throw new Error('Invalid dashboard payload - missing required fields');
             }
             
             console.log('[DashExec] Dashboard data received:', {
-              cacheStatus: json.payload.meta?.cacheStatus,
-              cacheAge: json.payload.meta?.cacheAge,
-              ordersCount: json.payload.meta?.ordersCount
+              cacheStatus: normalized.meta?.cacheStatus,
+              cacheAge: normalized.meta?.cacheAge,
+              ordersCount: normalized.meta?.ordersCount
             });
-            return json.payload;
+            return normalized;
           }
 
           // Other errors

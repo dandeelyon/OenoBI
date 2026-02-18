@@ -35,7 +35,13 @@ export function VintraceExplorer() {
       console.log("[Vintrace Explorer] Fetching:", url);
       console.log("[Vintrace Explorer] Expected Vintrace URL: https://us30.vintrace.net/bla/v6/search/list");
 
-      const response = await fetch(url);
+      const authToken = localStorage.getItem('authToken');
+      const headers: HeadersInit = {};
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      const response = await fetch(url, { headers });
 
       const data = await response.json();
 
@@ -86,7 +92,7 @@ export function VintraceExplorer() {
     setResults(null);
 
     try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/backend-api/vintrace/wine-batches?bbvOnly=true`;
+      const url = `${import.meta.env.VITE_BACKEND_URL}/backend-api/vintrace/wine-batches`;
       
       console.log("[Vintrace Explorer] Fetching wine batches:", url);
 

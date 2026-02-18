@@ -50,7 +50,7 @@ async def refresh_dashboard_data(
     be wired to call the same logic.
     """
     # Compute a fresh payload from upstream APIs.
-    payload = await compute_dashboard_payload()
+    payload = await compute_dashboard_payload(db=db)
 
     # Store as a new snapshot and mirror into KV for backward compatibility.
     snapshot = await create_snapshot(db, payload)

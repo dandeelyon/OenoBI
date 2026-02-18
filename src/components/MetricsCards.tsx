@@ -64,8 +64,22 @@ export function MetricsCards({ timePeriod, currentRole }: MetricsCardsProps) {
       
       // CLIENT-SIDE FILTERING: Choose which time window based on timePeriod
       // No network call - just pick the right field from cached payload
-      const revenue = period === 'month' ? overview.revenue.last30Days : overview.revenue.last90Days;
-      const orders = period === 'month' ? overview.orders.last30Days : overview.orders.last90Days;
+      const revenueByPeriod: Record<string, number | undefined> = {
+        today: overview.revenue.today,
+        week: overview.revenue.week,
+        month: overview.revenue.month,
+        quarter: overview.revenue.quarter,
+        year: overview.revenue.year,
+      };
+      const ordersByPeriod: Record<string, number | undefined> = {
+        today: overview.orders.today,
+        week: overview.orders.week,
+        month: overview.orders.month,
+        quarter: overview.orders.quarter,
+        year: overview.orders.year,
+      };
+      const revenue = revenueByPeriod[period] ?? overview.revenue.last30Days;
+      const orders = ordersByPeriod[period] ?? overview.orders.last30Days;
       const avgOrderValue = orders > 0 ? revenue / orders : 0;
       
       return [

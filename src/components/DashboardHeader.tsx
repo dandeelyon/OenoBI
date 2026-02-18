@@ -4,9 +4,16 @@ import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Search, Bell, Settings, User, Calculator, Building2, TrendingUp, RefreshCw } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { UserRole } from "../App";
 import { useDashExecContext } from "../context/DashExecProvider";
 import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 interface DashboardHeaderProps {
   onTimePeriodChange: (period: string) => void;
@@ -24,6 +31,7 @@ export function DashboardHeader({
   currentRole 
 }: DashboardHeaderProps) {
   const { refresh } = useDashExecContext();
+  const { signOut } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const handleRefresh = async () => {
@@ -128,10 +136,23 @@ export function DashboardHeader({
         </Button>
         
         <div className="flex items-center gap-2">
-          <Avatar>
-            <AvatarImage src="/placeholder-avatar.jpg" />
-            <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
-          </Avatar>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Avatar asChild>
+                <button
+                  type="button"
+                  aria-label="User menu"
+                  className="transition-colors hover:bg-muted/60"
+                >
+                  <AvatarImage src="/placeholder-avatar.jpg" />
+                  <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
+                </button>
+              </Avatar>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={signOut}>Sign out</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Badge variant="outline" className={currentRoleInfo?.color}>
             {currentRoleInfo?.label}
           </Badge>

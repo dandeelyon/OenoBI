@@ -38,9 +38,11 @@ export const AuthPage: React.FC = () => {
     if (isSignUp) {
       success = await signUp(email, password);
       if (success) {
-        setAuthMode('signin');
-        setEmail('');
-        setPassword('');
+        // Auto sign-in after successful signup so user lands on dashboard
+        const signedIn = await signIn(email, password);
+        if (!signedIn) {
+          setAuthMode('signin');
+        }
         setConfirmPassword('');
       }
     } else {

@@ -2,14 +2,16 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Tuple, Set
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.config import settings
+from app.db.models.vintrace import VintraceWineBatch
 from app.services.commerce7_client import (
     fetch_all_products,
     fetch_paged_orders,
     fetch_selective_customers,
 )
-from app.services.vintrace_client import fetch_inventory
+
 
 
 def _get_order_date(order: Dict[str, Any]) -> datetime | None:
@@ -190,7 +192,7 @@ def _allocate_curated_revenue_for_order(
     return {"revenue": total, "bottles": bottles, "skuRevenue": sku_revenue}
 
 
-async def compute_dashboard_payload(*, days_back: int = 180) -> Dict[str, Any]:
+async def compute_dashboard_payload(db: AsyncSession, *, days_back: int = 180) -> Dict[str, Any]:
     """
     High-level port of `computeDashboardPayload` from the TS backend.
 
@@ -199,24 +201,40 @@ async def compute_dashboard_payload(*, days_back: int = 180) -> Dict[str, Any]:
     - Computes overview metrics, monthly trend, and top movers.
     - Customer analytics can be added incrementally as needed.
     """
-    orders = await fetch_paged_orders(days_back=days_back)
+    now = datetime.now(timezone.utc)
+    start_of_year = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    days_since_year_start = (now - start_of_year).days + 1
+    orders = await fetch_paged_orders(days_back=max(days_back, days_since_year_start))
     products = await fetch_all_products()
-    vintrace_inventory_data = await fetch_inventory()
+    vintrace_batches = (await db.execute(select(VintraceWineBatch))).scalars().all()
 
     curated_skus, price_by_sku, title_by_sku, sku_by_variant_id = _build_sku_maps(
         products
     )
 
-    now = datetime.now(timezone.utc)
     d30 = now - timedelta(days=30)
     d90 = now - timedelta(days=90)
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_week = (start_of_day - timedelta(days=start_of_day.weekday()))
+    start_of_month = start_of_day.replace(day=1)
+    start_of_quarter = start_of_day.replace(month=((start_of_day.month - 1) // 3) * 3 + 1, day=1)
 
     orders30 = [o for o in orders if (d := _get_order_date(o)) and d >= d30]
     orders90 = [o for o in orders if (d := _get_order_date(o)) and d >= d90]
+    orders_today = [o for o in orders if (d := _get_order_date(o)) and d >= start_of_day]
+    orders_week = [o for o in orders if (d := _get_order_date(o)) and d >= start_of_week]
+    orders_month = [o for o in orders if (d := _get_order_date(o)) and d >= start_of_month]
+    orders_quarter = [o for o in orders if (d := _get_order_date(o)) and d >= start_of_quarter]
+    orders_year = [o for o in orders if (d := _get_order_date(o)) and d >= start_of_year]
 
-    # Curated revenue & bottles over 30/90 days
+    # Curated revenue & bottles over each period
     rev30 = bottles30 = 0.0
     rev90 = bottles90 = 0.0
+    rev_today = bottles_today = 0.0
+    rev_week = bottles_week = 0.0
+    rev_month = bottles_month = 0.0
+    rev_quarter = bottles_quarter = 0.0
+    rev_year = bottles_year = 0.0
 
     for o in orders30:
         alloc = _allocate_curated_revenue_for_order(
@@ -232,20 +250,65 @@ async def compute_dashboard_payload(*, days_back: int = 180) -> Dict[str, Any]:
         rev90 += alloc["revenue"]
         bottles90 += alloc["bottles"]
 
+    for o in orders_today:
+        alloc = _allocate_curated_revenue_for_order(
+            o, curated_skus, sku_by_variant_id, price_by_sku
+        )
+        rev_today += alloc["revenue"]
+        bottles_today += alloc["bottles"]
+
+    for o in orders_week:
+        alloc = _allocate_curated_revenue_for_order(
+            o, curated_skus, sku_by_variant_id, price_by_sku
+        )
+        rev_week += alloc["revenue"]
+        bottles_week += alloc["bottles"]
+
+    for o in orders_month:
+        alloc = _allocate_curated_revenue_for_order(
+            o, curated_skus, sku_by_variant_id, price_by_sku
+        )
+        rev_month += alloc["revenue"]
+        bottles_month += alloc["bottles"]
+
+    for o in orders_quarter:
+        alloc = _allocate_curated_revenue_for_order(
+            o, curated_skus, sku_by_variant_id, price_by_sku
+        )
+        rev_quarter += alloc["revenue"]
+        bottles_quarter += alloc["bottles"]
+
+    for o in orders_year:
+        alloc = _allocate_curated_revenue_for_order(
+            o, curated_skus, sku_by_variant_id, price_by_sku
+        )
+        rev_year += alloc["revenue"]
+        bottles_year += alloc["bottles"]
+
     commerce7_total_inventory_bottles = _compute_total_inventory(products)
     commerce7_total_products = len(products)
 
-    vintrace_total_inventory_bottles = _compute_vintrace_total_bottles(vintrace_inventory_data)
-    vintrace_total_products = _compute_vintrace_total_products(vintrace_inventory_data)
+    vintrace_total_inventory_bottles = _compute_vintrace_total_bottles(vintrace_batches)
+    vintrace_total_products = _compute_vintrace_total_products(vintrace_batches)
 
     overview = {
         "revenue": {
+            "today": round(rev_today, 2),
+            "week": round(rev_week, 2),
+            "month": round(rev_month, 2),
+            "quarter": round(rev_quarter, 2),
+            "year": round(rev_year, 2),
             "last30Days": round(rev30, 2),
             "last90Days": round(rev90, 2),
             "dailyAvg30d": round(rev30 / 30.0, 2),
             "dailyAvg90d": round(rev90 / 90.0, 2),
         },
         "orders": {
+            "today": len(orders_today),
+            "week": len(orders_week),
+            "month": len(orders_month),
+            "quarter": len(orders_quarter),
+            "year": len(orders_year),
             "last30Days": len(orders30),
             "last90Days": len(orders90),
         },
@@ -256,7 +319,7 @@ async def compute_dashboard_payload(*, days_back: int = 180) -> Dict[str, Any]:
     }
 
     monthly_trend = _compute_monthly_trend(
-        orders90, curated_skus, sku_by_variant_id, price_by_sku
+        orders_year, curated_skus, sku_by_variant_id, price_by_sku, year=start_of_year.year, now=now
     )
     top_movers = _compute_top_movers(
         orders90, curated_skus, sku_by_variant_id, price_by_sku, title_by_sku
@@ -287,32 +350,19 @@ def _compute_total_inventory(products: List[Dict[str, Any]]) -> int:
     return total
 
 
-def _compute_vintrace_total_bottles(vintrace_data: Dict[str, Any]) -> int:
+def _compute_vintrace_total_bottles(vintrace_batches: List[VintraceWineBatch]) -> int:
     total = 0
-    items = vintrace_data.get("inventorySummaries") or vintrace_data.get("results") or []
-    for item in items:
-        total += int(item.get("quantity") or item.get("totalQuantity") or 0)
+    for batch in vintrace_batches:
+        for vessel in batch.vessels_data:
+            # Assuming 'amount' in vessel_data has 'value' and represents volume
+            total += int(vessel.get("amount", {}).get("value") or 0)
     return total
 
 
-def _compute_vintrace_total_products(vintrace_data: Dict[str, Any]) -> int:
-    items = vintrace_data.get("inventorySummaries") or vintrace_data.get("results") or []
-    # Assuming each item in inventorySummaries/results represents a distinct product
-    return len(items)
+def _compute_vintrace_total_products(vintrace_batches: List[VintraceWineBatch]) -> int:
+    return len(vintrace_batches)
 
 
-def _compute_vintrace_total_bottles(vintrace_data: Dict[str, Any]) -> int:
-    total = 0
-    items = vintrace_data.get("inventorySummaries") or vintrace_data.get("results") or []
-    for item in items:
-        # Assuming 'quantity' or similar field holds the number of bottles
-        total += int(item.get("quantity") or item.get("totalQuantity") or 0)
-    return total
-
-
-def _compute_vintrace_total_products(vintrace_data: Dict[str, Any]) -> int:
-    items = vintrace_data.get("inventorySummaries") or vintrace_data.get("results") or []
-    return len(items)
 
 
 def _compute_monthly_trend(
@@ -320,6 +370,9 @@ def _compute_monthly_trend(
     curated_skus: Set[str],
     sku_by_variant_id: Dict[str, str],
     price_by_sku: Dict[str, float],
+    *,
+    year: int,
+    now: datetime,
 ) -> List[Dict[str, Any]]:
     monthly: Dict[str, Dict[str, Any]] = {}
     for o in orders:
@@ -341,21 +394,25 @@ def _compute_monthly_trend(
     month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     trend = []
-    for key, data in monthly.items():
-        year, mm = key.split("-")
-        label = f"{month_names[int(mm) - 1]} {year}"
+    last_month = now.month
+    for mm in range(1, last_month + 1):
+        key = f"{year}-{mm:02d}"
+        data = monthly.get(key, {"revenue": 0.0, "bottles": 0, "orders": 0})
+        label = f"{month_names[mm - 1]} {year}"
         trend.append(
             {
                 "month": label,
+                "monthKey": key,
                 "revenue": round(data["revenue"], 2),
                 "bottles": data["bottles"],
                 "orders": data["orders"],
             }
         )
 
-    trend.sort(key=lambda x: x["month"])
-    # Keep last 3 months for the chart, as in TS.
-    return trend[-3:]
+    trend.sort(key=lambda x: x["monthKey"])
+    for entry in trend:
+        entry.pop("monthKey", None)
+    return trend
 
 
 def _compute_top_movers(
@@ -390,4 +447,3 @@ def _compute_top_movers(
     for m in movers:
         m["revenue"] = round(m["revenue"], 2)
     return movers
-
