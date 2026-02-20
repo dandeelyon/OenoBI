@@ -1,0 +1,53 @@
+services:
+  db:
+    extends:
+      file: ./pgdb/compose.yml
+      service: db
+    restart: always
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - COMMERCE7_API_KEY=${COMMERCE7_API_KEY}
+      - COMMERCE7_BASE_URL=${COMMERCE7_BASE_URL}
+      - COMMERCE7_TENANT_ID=${COMMERCE7_TENANT_ID}
+      - VINTRACE_API_KEY=${VINTRACE_API_KEY}
+      - VINTRACE_BASE_URL=${VINTRACE_BASE_URL}
+      - DASH_CACHE_KEY=${DASH_CACHE_KEY}
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - db
+    restart: always
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.staging
+    environment:
+      - VITE_BACKEND_URL=https://${DOMAIN}
+    restart: always
+
+  caddy:
+    image: caddy:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - frontend
+    restart: always
+
+volumes:
+  caddy_data:
+  caddy_config:

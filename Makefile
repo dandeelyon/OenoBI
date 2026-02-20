@@ -7,8 +7,20 @@ SHELL:=/usr/bin/env bash
 export HOST_USER_ID:=$(shell id -u)
 export HOST_GROUP_ID:=$(shell id -g)
 
+# Load APP_ENV from .env file
+APP_ENV := $(shell grep -E '^APP_ENV=' .env | cut -d '=' -f2 | tr -d '[:space:]')
+
+# Select compose file based on APP_ENV
+ifeq ($(APP_ENV),staging)
+  COMPOSE_FILE := compose.staging.yml
+else
+  COMPOSE_FILE := compose.development.yml
+endif
+
+$(info -- APP_ENV is "$(APP_ENV)", using $(COMPOSE_FILE))
+
 # Docker compose setup
-DOCKER_COMPOSE := docker compose -f compose.development.yml
+DOCKER_COMPOSE := docker compose -f $(COMPOSE_FILE)
 DOCKER_COMPOSE_UP_DETACH := $(DOCKER_COMPOSE) up --detach
 DOCKER_COMPOSE_DOWN := $(DOCKER_COMPOSE) down
 DOCKER_COMPOSE_RESTART := $(DOCKER_COMPOSE) restart
