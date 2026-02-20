@@ -32,6 +32,8 @@ services:
       dockerfile: Dockerfile.staging
     environment:
       - VITE_BACKEND_URL=https://${DOMAIN}
+    args:
+      - VITE_BACKEND_URL=https://${DOMAIN}
     restart: always
 
   caddy:

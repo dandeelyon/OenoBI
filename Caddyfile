@@ -1,6 +1,6 @@
 yourdomain.com, www.yourdomain.com {
-    handle /api/* {
-        uri strip_prefix /api
+    handle /backend-api/* {
+        uri strip_prefix /backend-api
         reverse_proxy backend:8000
     }
 
